@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,10 @@ import {
   HelpCircle, MessageSquare, Phone, Mail, Search, Plus, Filter, FileText
 } from "lucide-react";
 import { TechnicalSpecification } from "@/components/docs/TechnicalSpecification";
+import { UserGuideSection } from "@/components/help/UserGuideSection";
+import { AdminGuideSection } from "@/components/help/AdminGuideSection";
+import { APIDocumentationSection } from "@/components/help/APIDocumentationSection";
+import { VideoTutorialsSection } from "@/components/help/VideoTutorialsSection";
 
 interface HelpSectionsProps {
   section: string;
@@ -30,7 +33,11 @@ export function HelpSections({ section, language = "fr" }: HelpSectionsProps) {
         faq: "FAQ",
         chatSupport: "Chat Support",
         helpCenter: "Centre d'aide",
-        technicalSpec: "Fiche technique"
+        technicalSpec: "Fiche technique",
+        userGuide: "Guide utilisateur",
+        adminGuide: "Guide administrateur",
+        apiDoc: "Documentation API",
+        videoTutorials: "Tutoriels vidéo"
       },
       ar: {
         aboutTitle: "حول",
@@ -42,7 +49,11 @@ export function HelpSections({ section, language = "fr" }: HelpSectionsProps) {
         faq: "الأسئلة الشائعة",
         chatSupport: "دعم المحادثة",
         helpCenter: "مركز المساعدة",
-        technicalSpec: "المواصفات الفنية"
+        technicalSpec: "المواصفات الفنية",
+        userGuide: "دليل المستخدم",
+        adminGuide: "دليل المدير",
+        apiDoc: "وثائق API",
+        videoTutorials: "دروس الفيديو"
       },
       en: {
         aboutTitle: "About",
@@ -54,7 +65,11 @@ export function HelpSections({ section, language = "fr" }: HelpSectionsProps) {
         faq: "FAQ",
         chatSupport: "Chat Support",
         helpCenter: "Help Center",
-        technicalSpec: "Technical Specification"
+        technicalSpec: "Technical Specification",
+        userGuide: "User Guide",
+        adminGuide: "Admin Guide",
+        apiDoc: "API Documentation",
+        videoTutorials: "Video Tutorials"
       }
     };
     return translations[language as keyof typeof translations]?.[key as keyof typeof translations['fr']] || key;
@@ -147,22 +162,24 @@ export function HelpSections({ section, language = "fr" }: HelpSectionsProps) {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="faq" className="flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4" />
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="faq" className="flex items-center gap-2 text-sm">
                   {getText("faq")}
                 </TabsTrigger>
-                <TabsTrigger value="chat" className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
+                <TabsTrigger value="chat" className="flex items-center gap-2 text-sm">
                   {getText("chatSupport")}
                 </TabsTrigger>
-                <TabsTrigger value="help" className="flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4" />
+                <TabsTrigger value="help" className="flex items-center gap-2 text-sm">
                   {getText("helpCenter")}
                 </TabsTrigger>
-                <TabsTrigger value="technical-spec" className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  {getText("technicalSpec")}
+                <TabsTrigger value="user-guide" className="flex items-center gap-2 text-sm">
+                  {getText("userGuide")}
+                </TabsTrigger>
+                <TabsTrigger value="admin-guide" className="flex items-center gap-2 text-sm">
+                  {getText("adminGuide")}
+                </TabsTrigger>
+                <TabsTrigger value="api-doc" className="flex items-center gap-2 text-sm">
+                  {getText("apiDoc")}
                 </TabsTrigger>
               </TabsList>
 
@@ -241,14 +258,38 @@ export function HelpSections({ section, language = "fr" }: HelpSectionsProps) {
                     <div className="space-y-4">
                       <p className="text-gray-600">Consultez notre documentation complète et nos guides d'utilisation.</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Button variant="outline">Guide utilisateur</Button>
-                        <Button variant="outline">Tutoriels vidéo</Button>
-                        <Button variant="outline">Documentation API</Button>
-                        <Button variant="outline">Guides administrateur</Button>
+                        <Button variant="outline" onClick={() => setActiveTab("user-guide")}>
+                          Guide utilisateur
+                        </Button>
+                        <Button variant="outline" onClick={() => setActiveTab("video-tutorials")}>
+                          Tutoriels vidéo
+                        </Button>
+                        <Button variant="outline" onClick={() => setActiveTab("api-doc")}>
+                          Documentation API
+                        </Button>
+                        <Button variant="outline" onClick={() => setActiveTab("admin-guide")}>
+                          Guides administrateur
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="user-guide" className="space-y-4">
+                <UserGuideSection />
+              </TabsContent>
+
+              <TabsContent value="admin-guide" className="space-y-4">
+                <AdminGuideSection />
+              </TabsContent>
+
+              <TabsContent value="api-doc" className="space-y-4">
+                <APIDocumentationSection />
+              </TabsContent>
+
+              <TabsContent value="video-tutorials" className="space-y-4">
+                <VideoTutorialsSection />
               </TabsContent>
 
               <TabsContent value="technical-spec" className="space-y-4">
