@@ -24,6 +24,14 @@ interface ProcedureComplexityChartProps {
 }
 
 export function ProcedureComplexityChart({ procedures }: ProcedureComplexityChartProps) {
+  // Move getBarColor function to the top before it's used
+  const getBarColor = (value: number) => {
+    if (value <= 3) return '#10b981'; // vert
+    if (value <= 6) return '#f59e0b'; // jaune
+    if (value <= 8) return '#f97316'; // orange
+    return '#ef4444'; // rouge
+  };
+
   const chartData = procedures.map(p => ({
     name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
     complexité: p.complexityScore,
@@ -47,13 +55,6 @@ export function ProcedureComplexityChart({ procedures }: ProcedureComplexityChar
     satisfaction: p.userSatisfaction * 20,
     complexité: p.complexityScore * 10
   }));
-
-  const getBarColor = (value: number) => {
-    if (value <= 3) return '#10b981'; // vert
-    if (value <= 6) return '#f59e0b'; // jaune
-    if (value <= 8) return '#f97316'; // orange
-    return '#ef4444'; // rouge
-  };
 
   return (
     <div className="space-y-8">
