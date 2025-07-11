@@ -12,14 +12,17 @@ export function NewsSection() {
   const actions = useGlobalActions();
 
   const handleAdd = () => {
+    console.log('Opening add news form...');
     setShowAddForm(true);
   };
 
   const handleEnrich = () => {
+    console.log('Opening enrichment with file import...');
     actions.handleImport(['.pdf', '.doc', '.docx', '.txt']);
   };
 
   const handleCloseForm = () => {
+    console.log('Closing add news form...');
     setShowAddForm(false);
   };
 
