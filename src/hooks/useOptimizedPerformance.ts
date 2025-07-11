@@ -21,7 +21,8 @@ export function useOptimizedPerformance(
 
   const renderCountRef = useRef(0);
   const lastRenderTimeRef = useRef(performance.now());
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
+  // Fix: Use proper type for setTimeout
+  const debounceTimeoutRef = useRef<number | null>(null);
 
   // Compteur de rendus
   useEffect(() => {
@@ -52,13 +53,14 @@ export function useOptimizedPerformance(
     }
   }, [componentName, enableMemoryMonitoring]);
 
-  // Debounced action handler
+  // Debounced action handler with proper cleanup
   const debouncedAction = useCallback((action: () => void) => {
-    if (debounceTimeoutRef.current) {
+    // Fix: Clear existing timeout properly
+    if (debounceTimeoutRef.current !== null) {
       clearTimeout(debounceTimeoutRef.current);
     }
     
-    debounceTimeoutRef.current = setTimeout(() => {
+    debounceTimeoutRef.current = window.setTimeout(() => {
       const startTime = performance.now();
       action();
       const endTime = performance.now();
@@ -68,6 +70,8 @@ export function useOptimizedPerformance(
         endTime - startTime,
         'interaction'
       );
+      // Fix: Reset ref after execution
+      debounceTimeoutRef.current = null;
     }, debounceDelay);
   }, [componentName, debounceDelay]);
 
@@ -78,11 +82,12 @@ export function useOptimizedPerformance(
     componentName
   }), [componentName]);
 
-  // Nettoyage
+  // Fix: Proper cleanup with comprehensive timeout clearing
   useEffect(() => {
     return () => {
-      if (debounceTimeoutRef.current) {
+      if (debounceTimeoutRef.current !== null) {
         clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
       }
     };
   }, []);

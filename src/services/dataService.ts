@@ -11,16 +11,48 @@ export interface DataItem {
 
 class DataService {
   private data: Map<string, DataItem[]> = new Map();
+  // Fix: Add counter to prevent ID collisions
+  private idCounter: number = 0;
 
   // Initialize with mock data
   constructor() {
     this.initializeMockData();
   }
 
+  // Fix: Implement robust UUID generation
+  private generateUniqueId(): string {
+    // Use a combination of timestamp, counter, and random values for uniqueness
+    const timestamp = Date.now().toString(36);
+    const counter = (++this.idCounter).toString(36);
+    const random = Math.random().toString(36).substring(2);
+    return `${timestamp}-${counter}-${random}`;
+  }
+
+  // Fix: Add method to ensure ID uniqueness within a category
+  private ensureUniqueId(category: string, proposedId?: string): string {
+    const items = this.data.get(category) || [];
+    
+    if (proposedId) {
+      // Check if proposed ID already exists
+      const exists = items.some(item => item.id === proposedId);
+      if (!exists) {
+        return proposedId;
+      }
+    }
+    
+    // Generate new unique ID
+    let newId: string;
+    do {
+      newId = this.generateUniqueId();
+    } while (items.some(item => item.id === newId));
+    
+    return newId;
+  }
+
   private initializeMockData() {
     const legalTexts: DataItem[] = [
       {
-        id: '1',
+        id: this.generateUniqueId(),
         title: 'Code Civil Algérien',
         type: 'civil',
         status: 'Publié',
@@ -29,7 +61,7 @@ class DataService {
         metadata: { institution: 'Ministère de la Justice' }
       },
       {
-        id: '2',
+        id: this.generateUniqueId(),
         title: 'Loi sur le Commerce Électronique',
         type: 'commercial',
         status: 'En révision',
@@ -41,7 +73,7 @@ class DataService {
 
     const procedures: DataItem[] = [
       {
-        id: '1',
+        id: this.generateUniqueId(),
         title: 'Demande de Passeport',
         type: 'état-civil',
         status: 'Actif',
@@ -50,7 +82,7 @@ class DataService {
         metadata: { institution: 'Direction de la Population' }
       },
       {
-        id: '2',
+        id: this.generateUniqueId(),
         title: 'Création d\'Entreprise',
         type: 'commercial',
         status: 'Actif',
@@ -91,9 +123,10 @@ class DataService {
 
   addItem(category: string, item: Omit<DataItem, 'id'>): DataItem {
     const items = this.data.get(category) || [];
+    // Fix: Use robust ID generation instead of Date.now()
     const newItem: DataItem = {
       ...item,
-      id: Date.now().toString()
+      id: this.ensureUniqueId(category)
     };
     items.push(newItem);
     this.data.set(category, items);
@@ -143,7 +176,8 @@ class DataService {
   // Comparison Management
   addToComparison(items: DataItem[]): string {
     const comparisons = this.data.get('comparisons') || [];
-    const comparisonId = Date.now().toString();
+    // Fix: Use robust ID generation for comparison
+    const comparisonId = this.ensureUniqueId('comparisons');
     const comparison = {
       id: comparisonId,
       title: `Comparaison ${comparisons.length + 1}`,
@@ -172,13 +206,30 @@ class DataService {
     }
   }
 
-  importData(category: string, data: DataItem[]): void {
+  // Fix: Improve import data method to handle ID conflicts properly
+  importData(category: string, data: DataItem[]): { success: number; conflicts: number } {
     const existingItems = this.data.get(category) || [];
-    const newItems = data.map(item => ({
-      ...item,
-      id: item.id || Date.now().toString() + Math.random().toString(36).substr(2, 9)
-    }));
+    let successCount = 0;
+    let conflictCount = 0;
+    
+    const newItems = data.map(item => {
+      let finalId = item.id;
+      
+      // Check for ID conflicts and resolve them
+      if (existingItems.some(existing => existing.id === item.id)) {
+        finalId = this.ensureUniqueId(category);
+        conflictCount++;
+      }
+      
+      successCount++;
+      return {
+        ...item,
+        id: finalId
+      };
+    });
+    
     this.data.set(category, [...existingItems, ...newItems]);
+    return { success: successCount, conflicts: conflictCount };
   }
 
   private convertToCSV(items: DataItem[]): string {

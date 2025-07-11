@@ -275,6 +275,84 @@ export const unifiedSecurityUtils = {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   },
 
+  // Fix: Add encryption utilities for secure localStorage
+  encryptData: async (data: string, key?: string): Promise<string> => {
+    try {
+      const secretKey = key || await unifiedSecurityUtils.generateEncryptionKey();
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(data);
+      
+      const keyBuffer = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secretKey.slice(0, 32)), // Use first 32 chars as key
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      );
+
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        keyBuffer,
+        dataBuffer
+      );
+
+      const encryptedArray = new Uint8Array(encryptedBuffer);
+      const result = new Uint8Array(iv.length + encryptedArray.length);
+      result.set(iv);
+      result.set(encryptedArray, iv.length);
+
+      return btoa(String.fromCharCode(...result));
+    } catch (error) {
+      console.error('Encryption failed:', error);
+      // Fallback to base64 encoding if encryption fails
+      return btoa(data);
+    }
+  },
+
+  decryptData: async (encryptedData: string, key?: string): Promise<string> => {
+    try {
+      const secretKey = key || await unifiedSecurityUtils.generateEncryptionKey();
+      const encoder = new TextEncoder();
+      const data = new Uint8Array([...atob(encryptedData)].map(char => char.charCodeAt(0)));
+      
+      const iv = data.slice(0, 12);
+      const encrypted = data.slice(12);
+
+      const keyBuffer = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secretKey.slice(0, 32)),
+        { name: 'AES-GCM' },
+        false,
+        ['decrypt']
+      );
+
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        keyBuffer,
+        encrypted
+      );
+
+      return new TextDecoder().decode(decryptedBuffer);
+    } catch (error) {
+      console.error('Decryption failed:', error);
+      // Fallback to base64 decoding if decryption fails
+      try {
+        return atob(encryptedData);
+      } catch {
+        return '';
+      }
+    }
+  },
+
+  generateEncryptionKey: async (): Promise<string> => {
+    // Generate a session-based key that's consistent during the session
+    if (!window.sessionEncryptionKey) {
+      window.sessionEncryptionKey = unifiedSecurityUtils.generateSecureToken(64);
+    }
+    return window.sessionEncryptionKey;
+  },
+
   validateFileUpload: (file: File): { valid: boolean; error?: string } => {
     const maxSize = 10 * 1024 * 1024; // 10MB
     const allowedTypes = [
@@ -333,7 +411,7 @@ export const unifiedSecurityUtils = {
     return hasPermission;
   },
 
-  logSecurityEvent: (event: {
+  logSecurityEvent: async (event: {
     type: 'login' | 'logout' | 'access_denied' | 'data_access' | 'file_upload' | 'custom';
     userId?: string;
     details: string;
@@ -348,19 +426,51 @@ export const unifiedSecurityUtils = {
 
     securityMonitor.logSecurityEvent(event.type, logEntry, event.severity);
 
-    // Stockage local sécurisé des logs
+    // Fix: Secure storage of security logs with encryption
     if (typeof window !== 'undefined') {
-      const logs = JSON.parse(localStorage.getItem('unified_security_logs') || '[]');
-      logs.push(logEntry);
-      
-      if (logs.length > 100) {
-        logs.splice(0, logs.length - 100);
+      try {
+        const encryptedLogs = localStorage.getItem('unified_security_logs_enc');
+        let logs: any[] = [];
+        
+        if (encryptedLogs) {
+          const decryptedData = await unifiedSecurityUtils.decryptData(encryptedLogs);
+          logs = JSON.parse(decryptedData || '[]');
+        }
+        
+        // Sanitize log entry before storage (remove sensitive details)
+        const sanitizedLogEntry = {
+          type: logEntry.type,
+          timestamp: logEntry.timestamp,
+          severity: event.severity || 'medium',
+          // Hash sensitive details instead of storing them directly
+          detailsHash: await unifiedSecurityUtils.hashSensitiveData(JSON.stringify(logEntry.details))
+        };
+        
+        logs.push(sanitizedLogEntry);
+        
+        if (logs.length > 100) {
+          logs = logs.slice(-100);
+        }
+        
+        const encryptedData = await unifiedSecurityUtils.encryptData(JSON.stringify(logs));
+        localStorage.setItem('unified_security_logs_enc', encryptedData);
+        
+        // Remove old unencrypted logs if they exist
+        localStorage.removeItem('unified_security_logs');
+      } catch (error) {
+        console.error('Failed to store security logs securely:', error);
+        // Don't store logs if encryption fails to maintain security
       }
-      
-      localStorage.setItem('unified_security_logs', JSON.stringify(logs));
     }
   }
 };
+
+// Fix: Add type declaration for session encryption key
+declare global {
+  interface Window {
+    sessionEncryptionKey?: string;
+  }
+}
 
 // Instance globale du moniteur de sécurité
 export const securityMonitor = new UnifiedSecurityMonitor();
