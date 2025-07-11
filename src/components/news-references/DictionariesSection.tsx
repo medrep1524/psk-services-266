@@ -1,11 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TabFormField } from '@/components/common/TabFormField';
 import { BookOpen, Languages, FileText } from 'lucide-react';
+import { AddLegalTextForm } from '@/components/forms/AddLegalTextForm';
+import { useGlobalActions } from '@/hooks/useGlobalActions';
 
 export function DictionariesSection() {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const actions = useGlobalActions();
+
+  const handleAdd = () => {
+    setShowAddForm(true);
+  };
+
+  const handleEnrich = () => {
+    actions.handleImport(['.pdf', '.doc', '.docx', '.txt']);
+  };
+
+  const handleCloseForm = () => {
+    setShowAddForm(false);
+  };
+
+  if (showAddForm) {
+    return (
+      <AddLegalTextForm 
+        isOpen={true} 
+        onClose={handleCloseForm} 
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="francais-arabe" className="w-full">
@@ -21,13 +47,13 @@ export function DictionariesSection() {
         </TabsList>
 
         <TabsContent value="francais-arabe" className="mt-6 space-y-6">
-          {/* Boutons d'action */}
+          {/* Boutons d'action connectés */}
           <div className="flex gap-3 justify-center mb-6">
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={handleAdd}>
               <BookOpen className="w-4 h-4" />
               Ajouter
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleEnrich}>
               <FileText className="w-4 h-4" />
               Enrichir
             </Button>
@@ -111,13 +137,13 @@ export function DictionariesSection() {
         </TabsContent>
 
         <TabsContent value="terminologie" className="mt-6 space-y-6">
-          {/* Boutons d'action */}
+          {/* Boutons d'action connectés */}
           <div className="flex gap-3 justify-center mb-6">
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={handleAdd}>
               <BookOpen className="w-4 h-4" />
               Ajouter
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleEnrich}>
               <FileText className="w-4 h-4" />
               Enrichir
             </Button>
