@@ -7,154 +7,204 @@ interface PerformanceMetric {
   name: string;
   value: number;
   timestamp: number;
-  category: 'rendering' | 'network' | 'memory' | 'interaction';
+  category: 'navigation' | 'interaction' | 'resource' | 'custom';
+}
+
+interface PerformanceReport {
+  vitals: {
+    loadComplete?: number;
+    firstContentfulPaint?: number;
+    largestContentfulPaint?: number;
+    firstInputDelay?: number;
+    cumulativeLayoutShift?: number;
+    memoryUsage?: {
+      used: number;
+      total: number;
+      limit: number;
+    };
+    recentMetrics?: PerformanceMetric[];
+  };
+  slowOperations?: Array<{
+    operation: string;
+    duration: number;
+    timestamp: number;
+  }>;
 }
 
 class PerformanceMonitor {
   private metrics: PerformanceMetric[] = [];
-  private observers: Map<string, PerformanceObserver> = new Map();
+  private slowOperations: Array<{ operation: string; duration: number; timestamp: number }> = [];
+  private observers: PerformanceObserver[] = [];
 
   constructor() {
     this.initializeObservers();
+    this.trackWebVitals();
   }
 
   private initializeObservers() {
     // Observer pour les métriques de navigation
     if ('PerformanceObserver' in window) {
-      const navObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          this.recordMetric(`navigation_${entry.name}`, entry.duration, 'network');
-        }
+      const navigationObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          this.addMetric({
+            name: entry.name,
+            value: entry.duration || 0,
+            timestamp: Date.now(),
+            category: 'navigation'
+          });
+        });
       });
 
       try {
-        navObserver.observe({ entryTypes: ['navigation', 'resource'] });
-        this.observers.set('navigation', navObserver);
-      } catch (e) {
-        console.warn('Performance observer not supported for navigation');
+        navigationObserver.observe({ entryTypes: ['navigation', 'measure', 'mark'] });
+        this.observers.push(navigationObserver);
+      } catch (error) {
+        console.warn('Navigation observer not supported:', error);
       }
 
-      // Observer pour les métriques de peinture
-      const paintObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          this.recordMetric(entry.name, entry.startTime, 'rendering');
-        }
+      // Observer pour les ressources
+      const resourceObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.duration > 1000) { // Ressources lentes > 1s
+            this.slowOperations.push({
+              operation: `Resource: ${entry.name}`,
+              duration: entry.duration,
+              timestamp: Date.now()
+            });
+          }
+        });
       });
 
       try {
-        paintObserver.observe({ entryTypes: ['paint'] });
-        this.observers.set('paint', paintObserver);
-      } catch (e) {
-        console.warn('Performance observer not supported for paint');
+        resourceObserver.observe({ entryTypes: ['resource'] });
+        this.observers.push(resourceObserver);
+      } catch (error) {
+        console.warn('Resource observer not supported:', error);
       }
     }
   }
 
-  recordMetric(name: string, value: number, category: PerformanceMetric['category']) {
-    this.metrics.push({
+  private trackWebVitals() {
+    // Import dynamique des web-vitals si disponible
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS((metric) => this.addMetric({
+        name: 'CLS',
+        value: metric.value,
+        timestamp: Date.now(),
+        category: 'custom'
+      }));
+
+      getFID((metric) => this.addMetric({
+        name: 'FID',
+        value: metric.value,
+        timestamp: Date.now(),
+        category: 'custom'
+      }));
+
+      getFCP((metric) => this.addMetric({
+        name: 'FCP',
+        value: metric.value,
+        timestamp: Date.now(),
+        category: 'custom'
+      }));
+
+      getLCP((metric) => this.addMetric({
+        name: 'LCP',
+        value: metric.value,
+        timestamp: Date.now(),
+        category: 'custom'
+      }));
+
+      getTTFB((metric) => this.addMetric({
+        name: 'TTFB',
+        value: metric.value,
+        timestamp: Date.now(),
+        category: 'custom'
+      }));
+    }).catch(() => {
+      console.warn('Web Vitals library not available');
+    });
+  }
+
+  addMetric(metric: PerformanceMetric) {
+    this.metrics.push(metric);
+    // Garder seulement les 100 dernières métriques
+    if (this.metrics.length > 100) {
+      this.metrics = this.metrics.slice(-100);
+    }
+  }
+
+  measureOperation<T>(name: string, operation: () => T): T {
+    const start = performance.now();
+    const result = operation();
+    const duration = performance.now() - start;
+
+    this.addMetric({
       name,
-      value,
+      value: duration,
       timestamp: Date.now(),
-      category
+      category: 'custom'
     });
 
-    // Garder seulement les 1000 dernières métriques
-    if (this.metrics.length > 1000) {
-      this.metrics = this.metrics.slice(-1000);
+    if (duration > 16) { // Opérations lentes > 16ms (frame budget)
+      this.slowOperations.push({
+        operation: name,
+        duration,
+        timestamp: Date.now()
+      });
     }
+
+    return result;
   }
 
-  // Mesurer le temps d'exécution d'une fonction
-  async measureFunction<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
+  async measureAsyncOperation<T>(name: string, operation: () => Promise<T>): Promise<T> {
     const start = performance.now();
-    try {
-      const result = await fn();
-      const duration = performance.now() - start;
-      this.recordMetric(`function_${name}`, duration, 'interaction');
-      return result;
-    } catch (error) {
-      const duration = performance.now() - start;
-      this.recordMetric(`function_${name}_error`, duration, 'interaction');
-      throw error;
+    const result = await operation();
+    const duration = performance.now() - start;
+
+    this.addMetric({
+      name,
+      value: duration,
+      timestamp: Date.now(),
+      category: 'custom'
+    });
+
+    if (duration > 100) { // Opérations async lentes > 100ms
+      this.slowOperations.push({
+        operation: name,
+        duration,
+        timestamp: Date.now()
+      });
     }
+
+    return result;
   }
 
-  // Mesurer les métriques vitales
-  getVitalMetrics() {
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+  getPerformanceReport(): PerformanceReport {
+    const memoryInfo = (performance as any).memory;
     
     return {
-      // Time to First Byte
-      ttfb: navigation ? navigation.responseStart - navigation.requestStart : 0,
-      
-      // Dom Content Loaded
-      dcl: navigation ? navigation.domContentLoadedEventEnd - navigation.fetchStart : 0,
-      
-      // Load Complete
-      loadComplete: navigation ? navigation.loadEventEnd - navigation.fetchStart : 0,
-      
-      // Memory usage (si disponible)
-      memoryUsage: this.getMemoryUsage(),
-      
-      // Métriques personnalisées récentes
-      recentMetrics: this.metrics.slice(-10)
+      vitals: {
+        loadComplete: performance.now(),
+        memoryUsage: memoryInfo ? {
+          used: memoryInfo.usedJSHeapSize,
+          total: memoryInfo.totalJSHeapSize,
+          limit: memoryInfo.jsHeapSizeLimit
+        } : undefined,
+        recentMetrics: this.metrics.slice(-20) // 20 dernières métriques
+      },
+      slowOperations: this.slowOperations.slice(-10) // 10 dernières opérations lentes
     };
   }
 
-  private getMemoryUsage() {
-    if ('memory' in performance) {
-      const memory = (performance as any).memory;
-      return {
-        used: Math.round(memory.usedJSHeapSize / 1048576), // MB
-        total: Math.round(memory.totalJSHeapSize / 1048576), // MB
-        limit: Math.round(memory.jsHeapSizeLimit / 1048576) // MB
-      };
-    }
-    return null;
+  clearMetrics() {
+    this.metrics = [];
+    this.slowOperations = [];
   }
 
-  getPerformanceReport() {
-    const vitals = this.getVitalMetrics();
-    const slowOperations = this.metrics
-      .filter(m => m.category === 'interaction' && m.value > 100)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
-
-    return {
-      vitals,
-      slowOperations,
-      recommendations: this.getRecommendations(vitals, slowOperations)
-    };
-  }
-
-  private getRecommendations(vitals: any, slowOps: PerformanceMetric[]): string[] {
-    const recommendations: string[] = [];
-
-    if (vitals.ttfb > 500) {
-      recommendations.push('Optimiser le temps de réponse du serveur (TTFB élevé)');
-    }
-
-    if (vitals.dcl > 3000) {
-      recommendations.push('Réduire la taille des ressources JavaScript/CSS');
-    }
-
-    if (slowOps.length > 5) {
-      recommendations.push('Optimiser les opérations lentes détectées');
-    }
-
-    if (vitals.memoryUsage && vitals.memoryUsage.used > vitals.memoryUsage.total * 0.8) {
-      recommendations.push('Optimiser l\'utilisation mémoire');
-    }
-
-    return recommendations;
-  }
-
-  // Nettoyer les observers
-  cleanup() {
-    for (const observer of this.observers.values()) {
-      observer.disconnect();
-    }
-    this.observers.clear();
+  destroy() {
+    this.observers.forEach(observer => observer.disconnect());
+    this.observers = [];
   }
 }
 
@@ -166,16 +216,26 @@ import { useEffect, useCallback } from 'react';
 export function usePerformanceTracking(componentName: string) {
   const trackOperation = useCallback(
     async <T>(operationName: string, operation: () => Promise<T> | T): Promise<T> => {
-      return performanceMonitor.measureFunction(`${componentName}_${operationName}`, operation);
+      return performanceMonitor.measureAsyncOperation(`${componentName}_${operationName}`, operation);
     },
     [componentName]
   );
 
   useEffect(() => {
-    performanceMonitor.recordMetric(`component_mount_${componentName}`, performance.now(), 'rendering');
+    performanceMonitor.addMetric({
+      name: `component_mount_${componentName}`,
+      value: performance.now(),
+      timestamp: Date.now(),
+      category: 'custom'
+    });
     
     return () => {
-      performanceMonitor.recordMetric(`component_unmount_${componentName}`, performance.now(), 'rendering');
+      performanceMonitor.addMetric({
+        name: `component_unmount_${componentName}`,
+        value: performance.now(),
+        timestamp: Date.now(),
+        category: 'custom'
+      });
     };
   }, [componentName]);
 
