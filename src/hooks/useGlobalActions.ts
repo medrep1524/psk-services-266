@@ -43,10 +43,33 @@ export function useGlobalActions() {
 
   const handleDownload = (filename: string, url?: string) => {
     console.log('Téléchargement:', filename, url);
+    
+    // Créer un fichier de démonstration selon le type
+    let content = '';
+    let mimeType = 'application/pdf';
+    
+    if (filename.includes('.pdf')) {
+      content = 'data:application/pdf;base64,JVBERi0xLjQKJdPr6eEK';
+      mimeType = 'application/pdf';
+    } else if (filename.includes('.xlsx') || filename.includes('.excel')) {
+      content = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,UEsDBBQABgAIAAAAIQA=';
+      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    } else if (filename.includes('.json')) {
+      const jsonData = {
+        exportDate: new Date().toISOString(),
+        data: 'Exemple de données exportées',
+        source: 'dalil.dz'
+      };
+      content = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData, null, 2));
+      mimeType = 'application/json';
+    }
+    
     const link = document.createElement('a');
-    link.href = url || `data:application/pdf;base64,JVBERi0xLjQKJdPr6eEK`;
+    link.href = url || content;
     link.download = filename;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   const handleComparison = (items: any[]) => {
@@ -102,7 +125,9 @@ export function useGlobalActions() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `${filename}.json`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
@@ -172,6 +197,31 @@ export function useGlobalActions() {
     window.dispatchEvent(event);
   };
 
+  // Nouvelles fonctions pour les formulaires d'ajout
+  const handleAddLegalText = () => {
+    console.log('Ouverture formulaire texte juridique');
+    const event = new CustomEvent('open-add-form', {
+      detail: { type: 'legal-text' }
+    });
+    window.dispatchEvent(event);
+  };
+
+  const handleAddProcedure = () => {
+    console.log('Ouverture formulaire procédure');
+    const event = new CustomEvent('open-add-form', {
+      detail: { type: 'procedure' }
+    });
+    window.dispatchEvent(event);
+  };
+
+  const handleAddNews = () => {
+    console.log('Ouverture formulaire actualité');
+    const event = new CustomEvent('open-add-form', {
+      detail: { type: 'news' }
+    });
+    window.dispatchEvent(event);
+  };
+
   return {
     handlePDFView,
     handleShare,
@@ -187,6 +237,9 @@ export function useGlobalActions() {
     handleLike,
     handleAnalysis,
     handleManagement,
+    handleAddLegalText,
+    handleAddProcedure,
+    handleAddNews,
     isProcessing
   };
 }
