@@ -2,37 +2,19 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Upload } from 'lucide-react';
+import { useGlobalActions } from '@/hooks/useGlobalActions';
 
 export function ActionButtons() {
+  const actions = useGlobalActions();
+
   const handleAddNew = () => {
-    console.log('Ajout d\'une nouvelle ressource');
-    // Simulation d'ouverture d'un modal d'ajout
-    const event = new CustomEvent('open-modal', { 
-      detail: { 
-        type: 'add-resource',
-        title: 'Ajouter une nouvelle ressource',
-        data: {}
-      }
-    });
-    window.dispatchEvent(event);
+    console.log('Opening add legal text form from library action buttons...');
+    actions.handleAddLegalText();
   };
 
   const handleEnrichment = () => {
-    console.log('Enrichissement des ressources');
-    // Simulation d'enrichissement automatique
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pdf,.doc,.docx,.txt';
-    input.multiple = true;
-    input.onchange = (e) => {
-      const files = (e.target as HTMLInputElement).files;
-      if (files) {
-        console.log('Fichiers sélectionnés pour enrichissement:', Array.from(files).map(f => f.name));
-        // Ici on pourrait traiter les fichiers
-        alert(`${files.length} fichier(s) sélectionné(s) pour enrichissement`);
-      }
-    };
-    input.click();
+    console.log('Opening enrichment with file import from library action buttons...');
+    actions.handleImport(['.pdf', '.doc', '.docx', '.txt']);
   };
 
   return (

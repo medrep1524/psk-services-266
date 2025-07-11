@@ -1,3 +1,4 @@
+
 import { Dashboard } from "@/components/Dashboard";
 import { LegalTextsSections } from "@/components/LegalTextsSections";
 import { AdministrativeProcedures } from "@/components/AdministrativeProcedures";
@@ -26,7 +27,6 @@ import AIAdvancedTest from "@/pages/AIAdvancedTest";
 import AIComprehensiveTest from "@/pages/AIComprehensiveTest";
 import { NextGenSearchSection } from "@/components/search/NextGenSearchSection";
 import { EnhancedAILegalAssistant } from "@/components/ai/EnhancedAILegalAssistant";
-import { AILegalAssistant } from "@/components/AILegalAssistant";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { TechnicalSpecification } from "@/components/docs/TechnicalSpecification";
 
