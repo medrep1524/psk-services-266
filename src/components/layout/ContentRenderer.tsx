@@ -22,7 +22,6 @@ import { MobileAppSection } from "@/components/configuration/MobileAppSection";
 import { ActionButtonsDemo } from "@/components/examples/ActionButtonsDemo";
 import { AIAdvancedSection } from "@/components/ai/AIAdvancedSection";
 import { AnalyticsDashboardsSection } from "@/components/analytics/AnalyticsDashboardsSection";
-import AIAssistantTest from "@/pages/AIAssistantTest";
 import AIAdvancedTest from "@/pages/AIAdvancedTest";
 import AIComprehensiveTest from "@/pages/AIComprehensiveTest";
 import { NextGenSearchSection } from "@/components/search/NextGenSearchSection";
