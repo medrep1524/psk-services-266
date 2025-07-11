@@ -291,6 +291,63 @@ export function TechnicalSpecification() {
         </CardContent>
       </Card>
 
+      {/* Nouvelles Fonctionnalités Ajoutées */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+            Nouvelles Fonctionnalités Ajoutées
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-semibold mb-3 text-green-600">Formulaires Fonctionnels</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 bg-green-50 rounded text-sm">
+                  <span>AddLegalTextForm.tsx</span>
+                  <Badge variant="outline" className="text-xs">Nouveau</Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-green-50 rounded text-sm">
+                  <span>AddProcedureForm.tsx</span>
+                  <Badge variant="outline" className="text-xs">Nouveau</Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-green-50 rounded text-sm">
+                  <span>AddNewsForm.tsx</span>
+                  <Badge variant="outline" className="text-xs">Nouveau</Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-green-50 rounded text-sm">
+                  <span>UnifiedAddButtonHandler.tsx</span>
+                  <Badge variant="outline" className="text-xs">Nouveau</Badge>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-3 text-blue-600">Actions Développées</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm">
+                  <span>Export PDF/Excel/JSON</span>
+                  <Badge variant="outline" className="text-xs">Fonctionnel</Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm">
+                  <span>Import de fichiers</span>
+                  <Badge variant="outline" className="text-xs">Fonctionnel</Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm">
+                  <span>Actions de partage</span>
+                  <Badge variant="outline" className="text-xs">Fonctionnel</Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm">
+                  <span>Graphiques remplis</span>
+                  <Badge variant="outline" className="text-xs">Complété</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Performance et Optimisation */}
       <Card>
         <CardHeader>
@@ -302,7 +359,7 @@ export function TechnicalSpecification() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">< 2s</div>
+              <div className="text-3xl font-bold text-green-600 mb-2">&lt; 2s</div>
               <div className="text-sm text-gray-600">Temps de chargement initial</div>
             </div>
             <div className="text-center">
