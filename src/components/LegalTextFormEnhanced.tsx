@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { FileText, Save, ArrowLeft, Wand2 } from 'lucide-react';
-import { getLegalTextTemplate, ALL_LEGAL_TEXT_TEMPLATES } from '@/data/legalTextTemplates';
-import { LegalTextDynamicFieldRenderer } from './legal/LegalTextDynamicFieldRenderer';
+import { useFormLibrary } from '@/hooks/useFormLibrary';
+import { DynamicFormRenderer } from '@/components/forms/DynamicFormRenderer';
 import { useNomenclatureData } from '@/hooks/useNomenclatureData';
 
 interface LegalTextFormEnhancedProps {
@@ -28,6 +28,7 @@ export function LegalTextFormEnhanced({
 }: LegalTextFormEnhancedProps) {
   const { toast } = useToast();
   const { nomenclatureData, mapOCRDataToForm } = useNomenclatureData();
+  const { getLegalTextFormForType, templates } = useFormLibrary();
   const [inputMethod, setInputMethod] = useState<'manual' | 'ocr'>(initialInputMethod);
   const [showOCRScanner, setShowOCRScanner] = useState(false);
   const [selectedTextType, setSelectedTextType] = useState<string>('');
@@ -241,7 +242,7 @@ export function LegalTextFormEnhanced({
     });
   };
 
-  const selectedTemplate = selectedTextType ? getLegalTextTemplate(selectedTextType) : null;
+  const selectedTemplate = selectedTextType ? getLegalTextFormForType(selectedTextType) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-6">
@@ -300,9 +301,9 @@ export function LegalTextFormEnhanced({
                       <SelectValue placeholder="Choisir un type de texte juridique" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ALL_LEGAL_TEXT_TEMPLATES.map((template) => (
-                        <SelectItem key={template.type} value={template.type}>
-                          {template.name}
+                      {nomenclatureData?.legalTypes.map((legalType) => (
+                        <SelectItem key={legalType.code} value={legalType.code}>
+                          {legalType.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -313,33 +314,12 @@ export function LegalTextFormEnhanced({
 
             {/* Formulaire dynamique adapté au type */}
             {selectedTemplate && (
-              <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                  <CardTitle className="text-xl text-gray-900">
-                    Formulaire : {selectedTemplate.name}
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Remplissez les champs spécifiques à ce type de texte juridique
-                  </p>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {selectedTemplate.fields.map((field) => (
-                      <div 
-                        key={field.name} 
-                        className={field.type === 'textarea' || field.type === 'dynamic-list' ? 'md:col-span-2' : ''}
-                      >
-                        <LegalTextDynamicFieldRenderer
-                          field={field}
-                          value={formData[field.name]}
-                          onChange={(value) => handleFieldChange(field.name, value)}
-                          formData={formData}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <DynamicFormRenderer
+                template={selectedTemplate}
+                formData={formData}
+                onFieldChange={handleFieldChange}
+                className="mb-6"
+              />
             )}
 
             {/* Actions */}

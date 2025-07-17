@@ -12,9 +12,8 @@ import { ArrowLeft, Settings, Save, Wand2, ClipboardList, Scan, FileImage } from
 import { useToast } from '@/hooks/use-toast';
 import { SmartOCRProcessor } from '@/components/common/SmartOCRProcessor';
 import { ProcedureFormOCRSection } from '@/components/procedures/ProcedureFormOCRSection';
-import { DynamicFieldList } from '@/components/procedure-form/DynamicFieldList';
-import { DocumentField } from '@/components/procedure-form/DocumentField';
-import { FileUploadField } from '@/components/procedure-form/FileUploadField';
+import { DynamicFormRenderer } from '@/components/forms/DynamicFormRenderer';
+import { useFormLibrary } from '@/hooks/useFormLibrary';
 import { useNomenclatureData } from '@/hooks/useNomenclatureData';
 
 interface ProcedureFormProps {
@@ -27,8 +26,10 @@ interface ProcedureFormProps {
 export function ProcedureForm({ onClose, onSubmit }: ProcedureFormProps) {
   const { toast } = useToast();
   const { nomenclatureData, mapOCRDataToForm } = useNomenclatureData();
+  const { getProcedureFormForCategory, templates } = useFormLibrary();
   const [inputMethod, setInputMethod] = useState<'manual' | 'ocr'>('manual');
   const [showOCRScanner, setShowOCRScanner] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   // Listen for OCR tab activation events
   useEffect(() => {
@@ -42,62 +43,7 @@ export function ProcedureForm({ onClose, onSubmit }: ProcedureFormProps) {
     };
   }, []);
 
-  const [formData, setFormData] = useState({
-    // Informations de base
-    name: '',
-    description: '',
-    procedureCategory: '',
-    sectorAdministration: '',
-    targetCategory: '',
-    
-    // Champs dynamiques
-    steps: [''],
-    conditions: [''],
-    requiredDocuments: [''],
-    requiredDocumentsType: 'text' as 'existing' | 'text',
-    complementaryDocuments: [''],
-    complementaryDocumentsType: 'text' as 'existing' | 'text',
-    legalBasis: [''],
-    
-    // Modalités
-    submissionLocation: '',
-    validityType: 'periodic' as 'periodic' | 'open',
-    validityStartDate: '',
-    validityEndDate: '',
-    processingDuration: '',
-    feeType: 'gratuit' as 'gratuit' | 'payant',
-    feeAmount: '',
-    paymentMethods: '',
-    
-    // Numérisation
-    digitization: false,
-    digitizationDate: '',
-    electronicPortalLink: '',
-    mobileAppLink: '',
-    thirdPartySubmission: false,
-    
-    // Retrait et validité
-    withdrawalTime: '',
-    withdrawalMethod: '',
-    documentValidity: '',
-    
-    // Recours
-    hasAppeal: false,
-    appealLocation: '',
-    appealDeadline: '',
-    appealFees: '',
-    
-    // Fichiers
-    userGuide: '',
-    downloadableForm: '',
-    
-    // FAQ et contact
-    faq: '',
-    contactAddress: '',
-    contactPhone: '',
-    contactGreenNumber: '',
-    contactEmail: ''
-  });
+  const [formData, setFormData] = useState<any>({});
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -154,27 +100,38 @@ export function ProcedureForm({ onClose, onSubmit }: ProcedureFormProps) {
     // Observations et autres champs
     if (data.formData.observations) mappedData.faq = data.formData.observations;
     
-    // Auto-détecter la catégorie si pas encore définie
+    // Auto-détecter la catégorie et sélectionner le formulaire approprié
     const content = (data.formData.contenu || data.formData.content || data.formData.description || '').toLowerCase();
+    let detectedCategory = '';
+    
     if (!mappedData.procedureCategory) {
       if (content.includes('commerce') || content.includes('entreprise') || content.includes('société')) {
+        detectedCategory = 'Commerce';
         mappedData.procedureCategory = 'Commerce';
       } else if (content.includes('urbanisme') || content.includes('construction') || content.includes('permis')) {
+        detectedCategory = 'Urbanisme';
         mappedData.procedureCategory = 'Urbanisme';
       } else if (content.includes('état civil') || content.includes('naissance') || content.includes('mariage')) {
+        detectedCategory = 'État civil';
         mappedData.procedureCategory = 'État civil';
       } else if (content.includes('fiscalité') || content.includes('impôt') || content.includes('taxe')) {
-        mappedData.procedureCategory = 'Fiscalité';
+        detectedCategory = 'Fiscal';
+        mappedData.procedureCategory = 'Fiscal';
       } else if (content.includes('santé') || content.includes('médical') || content.includes('hôpital')) {
-        mappedData.procedureCategory = 'Santé';
+        detectedCategory = 'Social';
+        mappedData.procedureCategory = 'Social';
       } else if (content.includes('éducation') || content.includes('école') || content.includes('université')) {
-        mappedData.procedureCategory = 'Éducation';
+        detectedCategory = 'Social';
+        mappedData.procedureCategory = 'Social';
       } else if (content.includes('transport') || content.includes('permis de conduire') || content.includes('véhicule')) {
-        mappedData.procedureCategory = 'Transport';
+        detectedCategory = 'Urbanisme';
+        mappedData.procedureCategory = 'Urbanisme';
       } else if (content.includes('environnement') || content.includes('écologie') || content.includes('pollution')) {
+        detectedCategory = 'Environnement';
         mappedData.procedureCategory = 'Environnement';
       } else if (content.includes('agriculture') || content.includes('agricole') || content.includes('exploitation')) {
-        mappedData.procedureCategory = 'Agriculture';
+        detectedCategory = 'Environnement';
+        mappedData.procedureCategory = 'Environnement';
       }
     }
     
@@ -217,7 +174,10 @@ export function ProcedureForm({ onClose, onSubmit }: ProcedureFormProps) {
     // CRITICAL: Mise à jour immédiate et synchrone des états
     setShowOCRScanner(false);
     setInputMethod('manual');
-    setFormData(prev => ({ ...prev, ...mappedData }));
+    setSelectedCategory(detectedCategory || '');
+    setTimeout(() => {
+      setFormData(prev => ({ ...prev, ...mappedData }));
+    }, 50);
     
     // Afficher la notification de succès
     toast({
@@ -234,15 +194,22 @@ export function ProcedureForm({ onClose, onSubmit }: ProcedureFormProps) {
     window.dispatchEvent(event);
   };
 
+  const handleFieldChange = (fieldName: string, value: any) => {
+    setFormData(prev => ({ ...prev, [fieldName]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Données de la procédure:', formData);
-    onSubmit(formData);
+    const finalData = { ...formData, procedureCategory: selectedCategory };
+    console.log('Données de la procédure:', finalData);
+    onSubmit(finalData);
     toast({
       title: "Procédure ajoutée",
-      description: `La procédure "${formData.name || 'nouvelle procédure'}" a été ajoutée avec succès.`,
+      description: `La procédure "${finalData.name || 'nouvelle procédure'}" a été ajoutée avec succès.`,
     });
   };
+
+  const selectedTemplate = selectedCategory ? getProcedureFormForCategory(selectedCategory) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-6">
@@ -316,506 +283,55 @@ export function ProcedureForm({ onClose, onSubmit }: ProcedureFormProps) {
         {inputMethod === 'manual' && (
           <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* Informations générales */}
+            {/* Sélection de la catégorie de procédure */}
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
               <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Informations générales</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-blue-600" />
+                  Catégorie de Procédure
+                </CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-medium text-gray-700">Nom de la procédure *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      placeholder="Nom de la procédure"
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="procedureCategory" className="text-sm font-medium text-gray-700">Catégorie de procédure *</Label>
-                    <Select onValueChange={(value) => handleInputChange('procedureCategory', value)} value={formData.procedureCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner une catégorie" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nomenclatureData?.procedureCategories.map((category) => (
-                          <SelectItem key={category.code} value={category.name}>{category.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
+              <CardContent className="p-6">
                 <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-medium text-gray-700">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Description de la procédure"
-                    rows={4}
-                    className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="sectorAdministration" className="text-sm font-medium text-gray-700">Secteur et/ou administration *</Label>
-                    <Select onValueChange={(value) => handleInputChange('sectorAdministration', value)} value={formData.sectorAdministration}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner une organisation" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nomenclatureData?.organizations.map((org) => (
-                          <SelectItem key={org.code} value={org.name}>{org.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="targetCategory" className="text-sm font-medium text-gray-700">Catégorie Ciblée</Label>
-                    <Select onValueChange={(value) => handleInputChange('targetCategory', value)} value={formData.targetCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner la catégorie ciblée" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="citoyen">Citoyen</SelectItem>
-                        <SelectItem value="administration">Administration</SelectItem>
-                        <SelectItem value="entreprises">Entreprises</SelectItem>
-                        <SelectItem value="investisseur">Investisseur</SelectItem>
-                        <SelectItem value="associations">Associations</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Label htmlFor="procedure-category" className="text-sm font-medium text-gray-700">
+                    Sélectionnez la catégorie de procédure *
+                  </Label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="border-gray-200 focus:border-blue-500">
+                      <SelectValue placeholder="Choisir une catégorie de procédure" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nomenclatureData?.procedureCategories.map((category) => (
+                        <SelectItem key={category.code} value={category.name}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Détails de la procédure */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Détails de la procédure</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <DynamicFieldList
-                  label="Étapes (avec démonstration si disponible)"
-                  values={formData.steps}
-                  onChange={(values) => handleInputChange('steps', values)}
-                  placeholder="Décrire une étape de la procédure..."
-                  type="textarea"
-                />
-
-                <DynamicFieldList
-                  label="Conditions d'utilisation du service"
-                  values={formData.conditions}
-                  onChange={(values) => handleInputChange('conditions', values)}
-                  placeholder="Décrire une condition d'utilisation..."
-                  type="textarea"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Documents */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Documents requis</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <DocumentField
-                  label="Documents demandés"
-                  values={formData.requiredDocuments}
-                  onChange={(values) => handleInputChange('requiredDocuments', values)}
-                  type={formData.requiredDocumentsType}
-                  onTypeChange={(type) => handleInputChange('requiredDocumentsType', type)}
-                />
-
-                <DocumentField
-                  label="Documents Complémentaires"
-                  values={formData.complementaryDocuments}
-                  onChange={(values) => handleInputChange('complementaryDocuments', values)}
-                  type={formData.complementaryDocumentsType}
-                  onTypeChange={(type) => handleInputChange('complementaryDocumentsType', type)}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Modalités */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Modalités de la procédure</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="submissionLocation" className="text-sm font-medium text-gray-700">Où déposer le dossier - Administration concernée</Label>
-                  <Input
-                    id="submissionLocation"
-                    value={formData.submissionLocation}
-                    onChange={(e) => handleInputChange('submissionLocation', e.target.value)}
-                    placeholder="Administration concernée"
-                    className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                {/* Validité de la procédure */}
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium text-gray-700">Validité de la procédure</Label>
-                  <RadioGroup
-                    value={formData.validityType}
-                    onValueChange={(value) => handleInputChange('validityType', value)}
-                    className="mb-3"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="periodic" id="periodic" />
-                      <Label htmlFor="periodic">Périodique</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="open" id="open" />
-                      <Label htmlFor="open">Ouverte</Label>
-                    </div>
-                  </RadioGroup>
-                  {formData.validityType === 'periodic' && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="validityStartDate">Du</Label>
-                        <Input
-                          id="validityStartDate"
-                          type="date"
-                          value={formData.validityStartDate}
-                          onChange={(e) => handleInputChange('validityStartDate', e.target.value)}
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="validityEndDate">Au</Label>
-                        <Input
-                          id="validityEndDate"
-                          type="date"
-                          value={formData.validityEndDate}
-                          onChange={(e) => handleInputChange('validityEndDate', e.target.value)}
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="processingDuration" className="text-sm font-medium text-gray-700">Durée du traitement (jours)</Label>
-                    <Input
-                      id="processingDuration"
-                      type="number"
-                      value={formData.processingDuration}
-                      onChange={(e) => handleInputChange('processingDuration', e.target.value)}
-                      placeholder="Nombre de jours"
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Frais</Label>
-                    <RadioGroup
-                      value={formData.feeType}
-                      onValueChange={(value) => handleInputChange('feeType', value)}
-                      className="mb-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="gratuit" id="gratuit" />
-                        <Label htmlFor="gratuit">Gratuit</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="payant" id="payant" />
-                        <Label htmlFor="payant">Payant</Label>
-                      </div>
-                    </RadioGroup>
-                    {formData.feeType === 'payant' && (
-                      <div className="space-y-2">
-                        <Input
-                          placeholder="Montant en DA"
-                          value={formData.feeAmount}
-                          onChange={(e) => handleInputChange('feeAmount', e.target.value)}
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                        <Input
-                          placeholder="Méthodes de paiement"
-                          value={formData.paymentMethods}
-                          onChange={(e) => handleInputChange('paymentMethods', e.target.value)}
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Numérisation et modalités */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Numérisation et modalités</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                {/* Numérisation */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="digitization"
-                      checked={formData.digitization}
-                      onCheckedChange={(checked) => handleInputChange('digitization', checked)}
-                    />
-                    <Label htmlFor="digitization">Numérisation de la procédure</Label>
-                  </div>
-
-                  {formData.digitization && (
-                    <div className="space-y-4 pl-6 border-l-2 border-muted">
-                      <div>
-                        <Label htmlFor="digitizationDate">Date de la numérisation</Label>
-                        <Input
-                          id="digitizationDate"
-                          type="date"
-                          value={formData.digitizationDate}
-                          onChange={(e) => handleInputChange('digitizationDate', e.target.value)}
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="electronicPortalLink">Lien du portail électronique</Label>
-                        <Input
-                          id="electronicPortalLink"
-                          type="url"
-                          value={formData.electronicPortalLink}
-                          onChange={(e) => handleInputChange('electronicPortalLink', e.target.value)}
-                          placeholder="https://..."
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="mobileAppLink">Lien de l'application mobile (si elle existe)</Label>
-                        <Input
-                          id="mobileAppLink"
-                          type="url"
-                          value={formData.mobileAppLink}
-                          onChange={(e) => handleInputChange('mobileAppLink', e.target.value)}
-                          placeholder="https://..."
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Modalités de retrait */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="thirdPartySubmission"
-                      checked={formData.thirdPartySubmission}
-                      onCheckedChange={(checked) => handleInputChange('thirdPartySubmission', checked)}
-                    />
-                    <Label htmlFor="thirdPartySubmission">Dépôt par une tierce personne</Label>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="withdrawalTime">Quand retirer l'acte ou le service administratif demandé</Label>
-                    <Input
-                      id="withdrawalTime"
-                      value={formData.withdrawalTime}
-                      onChange={(e) => handleInputChange('withdrawalTime', e.target.value)}
-                      placeholder="Délai de retrait"
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="withdrawalMethod">Comment retirer l'acte ou le service administratif demandé</Label>
-                    <Textarea
-                      id="withdrawalMethod"
-                      value={formData.withdrawalMethod}
-                      onChange={(e) => handleInputChange('withdrawalMethod', e.target.value)}
-                      placeholder="Modalités de retrait"
-                      rows={2}
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="documentValidity">Validité de l'acte ou du service administratif demandé</Label>
-                    <Input
-                      id="documentValidity"
-                      value={formData.documentValidity}
-                      onChange={(e) => handleInputChange('documentValidity', e.target.value)}
-                      placeholder="Durée de validité"
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Recours */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="hasAppeal"
-                      checked={formData.hasAppeal}
-                      onCheckedChange={(checked) => handleInputChange('hasAppeal', checked)}
-                    />
-                    <Label htmlFor="hasAppeal">Recours disponible</Label>
-                  </div>
-
-                  {formData.hasAppeal && (
-                    <div className="space-y-4 pl-6 border-l-2 border-muted">
-                      <div>
-                        <Label htmlFor="appealLocation">Où déposer</Label>
-                        <Input
-                          id="appealLocation"
-                          value={formData.appealLocation}
-                          onChange={(e) => handleInputChange('appealLocation', e.target.value)}
-                          placeholder="Lieu de dépôt du recours"
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="appealDeadline">Les délais</Label>
-                        <Input
-                          id="appealDeadline"
-                          value={formData.appealDeadline}
-                          onChange={(e) => handleInputChange('appealDeadline', e.target.value)}
-                          placeholder="Délais de recours"
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="appealFees">Les frais</Label>
-                        <Input
-                          id="appealFees"
-                          value={formData.appealFees}
-                          onChange={(e) => handleInputChange('appealFees', e.target.value)}
-                          placeholder="Frais de recours"
-                          className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Ancrage juridique et fichiers */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Ancrage juridique et fichiers</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <DynamicFieldList
-                  label="Ancrage juridique"
-                  values={formData.legalBasis}
-                  onChange={(values) => handleInputChange('legalBasis', values)}
-                  placeholder="Référence légale ou réglementaire..."
-                  type="textarea"
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FileUploadField
-                    label="Guide d'utilisation à télécharger"
-                    value={formData.userGuide}
-                    onChange={(value) => handleInputChange('userGuide', value)}
-                    accept=".pdf,.doc,.docx"
-                  />
-
-                  <FileUploadField
-                    label="Formulaire à télécharger"
-                    value={formData.downloadableForm}
-                    onChange={(value) => handleInputChange('downloadableForm', value)}
-                    accept=".pdf,.doc,.docx"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Informations complémentaires */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-emerald-50">
-                <CardTitle className="text-xl text-gray-900">Informations complémentaires</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div>
-                  <Label htmlFor="faq">Questions fréquemment posées</Label>
-                  <Textarea
-                    id="faq"
-                    value={formData.faq}
-                    onChange={(e) => handleInputChange('faq', e.target.value)}
-                    placeholder="FAQ sur la procédure..."
-                    rows={3}
-                    className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Contact */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Contact</h3>
-                  
-                  <div>
-                    <Label htmlFor="contactAddress">Adresse</Label>
-                    <Textarea
-                      id="contactAddress"
-                      value={formData.contactAddress}
-                      onChange={(e) => handleInputChange('contactAddress', e.target.value)}
-                      placeholder="Adresse complète"
-                      rows={2}
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="contactPhone">N° Téléphone</Label>
-                      <Input
-                        id="contactPhone"
-                        value={formData.contactPhone}
-                        onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                        placeholder="Numéro de téléphone"
-                        className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="contactGreenNumber">N° Vert</Label>
-                      <Input
-                        id="contactGreenNumber"
-                        value={formData.contactGreenNumber}
-                        onChange={(e) => handleInputChange('contactGreenNumber', e.target.value)}
-                        placeholder="Numéro vert"
-                        className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="contactEmail">E-mail</Label>
-                    <Input
-                      id="contactEmail"
-                      type="email"
-                      value={formData.contactEmail}
-                      onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                      placeholder="Adresse e-mail"
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Formulaire dynamique adapté à la catégorie */}
+            {selectedTemplate && (
+              <DynamicFormRenderer
+                template={selectedTemplate}
+                formData={formData}
+                onFieldChange={handleFieldChange}
+                className="mb-6"
+              />
+            )}
 
             {/* Actions */}
             <div className="flex justify-end gap-4 pt-6">
               <Button type="button" variant="outline" onClick={onClose} className="px-8">
                 Annuler
               </Button>
-              <Button type="submit" className="px-8 bg-blue-600 hover:bg-blue-700 gap-2">
+              <Button 
+                type="submit" 
+                className="px-8 bg-blue-600 hover:bg-blue-700 gap-2"
+                disabled={!selectedCategory}
+              >
                 <Save className="w-4 h-4" />
                 Enregistrer la procédure
               </Button>
